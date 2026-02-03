@@ -10,22 +10,31 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       
-      - name: Setup Project Structure
+      - name: Repair Project Structure
         run: |
-          # Bikhri hui files ko sahi jagah set karne ka jugad
-          mkdir -p app/src/main/kotlin/com/example/gestureshare
+          # Folders banana jo Android ko chahiye
+          mkdir -p app/src/main/java/com/example/gestureshare
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/assets
           
-          # Files move karna
-          mv MainActivity.kt app/src/main/kotlin/com/example/gestureshare/ || true
-          mv AndroidManifest.xml app/src/main/ || true
-          mv activity_main.xml app/src/main/res/layout/ || true
-          mv hand_landmarker.task app/src/main/assets/ || true
-          mv build.gradle app/build.gradle || true
+          # Bikhri hui files ko sahi jagah move karna
+          [ -f MainActivity.kt ] && mv MainActivity.kt app/src/main/java/com/example/gestureshare/
+          [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/
+          [ -f activity_main.xml ] && mv activity_main.xml app/src/main/res/layout/
+          [ -f hand_landmarker.task ] && mv hand_landmarker.task app/src/main/assets/
+          [ -f build.gradle ] && mv build.gradle app/build.gradle
           
-          # Ek basic settings file banana
+          # Nayi settings file banana
           echo "include ':app'" > settings.gradle
+          
+          # Root level build file banana
+          cat <<EOF > build.gradle
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.2.0'; classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0" }
+          }
+          allprojects { repositories { google(); mavenCentral() } }
+          EOF
 
       - name: Build APK
         run: |
@@ -38,3 +47,4 @@ jobs:
         with:
           name: EraShare-APK
           path: "**/build/outputs/apk/debug/*.apk"
+          
