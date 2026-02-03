@@ -6,39 +6,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-      
-      - name: Force Fix and Build
-        run: |
-          # 1. Purani Gradle files ko hatana taaki nayi ban sakein
-          rm -f settings.gradle build.gradle gradlew gradlew.bat
-          rm -rf gradle/
 
-          # 2. Sahi Folders banana
+      # Step 1: Sari bikhri files ko sahi Android structure mein dalna
+      - name: Fix Structure
+        run: |
+          rm -f settings.gradle build.gradle
           mkdir -p app/src/main/java/com/example/gestureshare
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/assets
+          [ -f MainActivity.kt ] && mv MainActivity.kt app/src/main/java/com/example/gestureshare/
+          [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/
+          [ -f activity_main.xml ] && mv activity_main.xml app/src/main/res/layout/
+          [ -f hand_landmarker.task ] && mv hand_landmarker.task app/src/main/assets/
 
-          # 3. Files ko sahi jagah move karna
-          mv MainActivity.kt app/src/main/java/com/example/gestureshare/ || true
-          mv AndroidManifest.xml app/src/main/ || true
-          mv activity_main.xml app/src/main/res/layout/ || true
-          mv hand_landmarker.task app/src/main/assets/ || true
+      # Step 2: Sabse Important - Gradle 8.2 pe LOCK karna
+      - name: Setup Gradle 8.2
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.2
 
-          # 4. Force Create Gradle Files (Fixed Version)
+      # Step 3: Android Config Files likhna (Version 8.2.0 plugin ke sath)
+      - name: Create Configs
+        run: |
           echo "include ':app'" > settings.gradle
-          
           cat <<EOF > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
+              dependencies { classpath 'com.android.tools.build:gradle:8.2.0' }
           }
           allprojects { repositories { google(); mavenCentral() } }
           EOF
-
           cat <<EOF > app/build.gradle
           plugins { id 'com.android.application' }
           android {
@@ -57,10 +60,13 @@ jobs:
           }
           EOF
 
-      - name: Downgrade Gradle and Build
-        run: |
-          # Sabse bada step: Gradle 8.1 version lock karna
-          gradle wrapper --gradle-version 8.1
-          chmod +x gradlew
-          ./gradlew :app:assembleDebug --no-daemon
+      # Step 4: Ab seedha Gradle run karna (bina wrapper ke jhagde ke)
+      - name: Build with Gradle 8.2
+        run: gradle :app:assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: EraShare-APK
+          path: "**/build/outputs/apk/debug/*.apk"
           
