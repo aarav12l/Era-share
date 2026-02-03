@@ -13,28 +13,34 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      # Step 1: Sari bikhri files ko sahi Android structure mein dalna
-      - name: Fix Structure
+      # 1. Project Structure Repair (Sab kuch sahi jagah set karna)
+      - name: Repair Project
         run: |
-          rm -f settings.gradle build.gradle
+          # Purani files clear karna
+          rm -f settings.gradle build.gradle gradle.properties
+          
+          # Zaruri folders banana
           mkdir -p app/src/main/java/com/example/gestureshare
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/assets
+
+          # Tumhari files ko unki sahi jagah move karna
           [ -f MainActivity.kt ] && mv MainActivity.kt app/src/main/java/com/example/gestureshare/
           [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/
           [ -f activity_main.xml ] && mv activity_main.xml app/src/main/res/layout/
           [ -f hand_landmarker.task ] && mv hand_landmarker.task app/src/main/assets/
 
-      # Step 2: Sabse Important - Gradle 8.2 pe LOCK karna
-      - name: Setup Gradle 8.2
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: 8.2
-
-      # Step 3: Android Config Files likhna (Version 8.2.0 plugin ke sath)
-      - name: Create Configs
+      # 2. Sari Config Files ek saath likhna (AndroidX Error Fix ke saath)
+      - name: Write All Configs
         run: |
+          # settings.gradle
           echo "include ':app'" > settings.gradle
+          
+          # gradle.properties (Isse AndroidX error nahi aayega)
+          echo "android.useAndroidX=true" > gradle.properties
+          echo "android.enableJetifier=true" >> gradle.properties
+          
+          # Project level build.gradle
           cat <<EOF > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
@@ -42,6 +48,8 @@ jobs:
           }
           allprojects { repositories { google(); mavenCentral() } }
           EOF
+          
+          # App level build.gradle
           cat <<EOF > app/build.gradle
           plugins { id 'com.android.application' }
           android {
@@ -51,22 +59,33 @@ jobs:
                   applicationId "com.example.gestureshare"
                   minSdk 24
                   targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
               }
+              buildTypes { release { minifyEnabled false } }
           }
           dependencies {
               implementation 'androidx.appcompat:appcompat:1.6.1'
               implementation 'com.google.android.material:material:1.11.0'
+              implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
               implementation 'com.google.mediapipe:tasks-vision:0.10.0'
           }
           EOF
 
-      # Step 4: Ab seedha Gradle run karna (bina wrapper ke jhagde ke)
-      - name: Build with Gradle 8.2
+      # 3. Gradle 8.2 pe Lock karna
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: 8.2
+
+      # 4. Final Build Command
+      - name: Build APK
         run: gradle :app:assembleDebug --no-daemon
 
-      - name: Upload APK
+      # 5. APK ko download ke liye dena
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: EraShare-APK
+          name: EraShare-Final-APK
           path: "**/build/outputs/apk/debug/*.apk"
           
