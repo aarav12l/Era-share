@@ -1,5 +1,6 @@
 name: Android Build APK
 on: [push, workflow_dispatch]
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -10,32 +11,34 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       
-      - name: Repair and Force Build
+      - name: Force Fix and Build
         run: |
-          # 1. Folder Structure Fix
+          # 1. Purani Gradle files ko hatana taaki nayi ban sakein
+          rm -f settings.gradle build.gradle gradlew gradlew.bat
+          rm -rf gradle/
+
+          # 2. Sahi Folders banana
           mkdir -p app/src/main/java/com/example/gestureshare
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/assets
 
-          # 2. Files Move (Bina Error ke)
+          # 3. Files ko sahi jagah move karna
           mv MainActivity.kt app/src/main/java/com/example/gestureshare/ || true
           mv AndroidManifest.xml app/src/main/ || true
           mv activity_main.xml app/src/main/res/layout/ || true
           mv hand_landmarker.task app/src/main/assets/ || true
 
-          # 3. Correct Settings File
+          # 4. Force Create Gradle Files (Fixed Version)
           echo "include ':app'" > settings.gradle
-
-          # 4. Correct Root build.gradle (Fixed Version)
+          
           cat <<EOF > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.1.1' }
+              dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
           }
           allprojects { repositories { google(); mavenCentral() } }
           EOF
 
-          # 5. Correct App build.gradle
           cat <<EOF > app/build.gradle
           plugins { id 'com.android.application' }
           android {
@@ -45,8 +48,6 @@ jobs:
                   applicationId "com.example.gestureshare"
                   minSdk 24
                   targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
               }
           }
           dependencies {
@@ -56,16 +57,16 @@ jobs:
           }
           EOF
 
-      - name: Build APK with Fixed Gradle
+      - name: Downgrade Gradle and Build
         run: |
-          # Gradle 8.2 use karenge taaki HasConvention error na aaye
-          gradle wrapper --gradle-version 8.2
+          # Sabse bada step: Gradle 8.1 version lock karna
+          gradle wrapper --gradle-version 8.1
           chmod +x gradlew
           ./gradlew :app:assembleDebug --no-daemon
 
-      - name: Upload APK
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: EraShare-Final-APK
+          name: EraShare-APK
           path: "**/build/outputs/apk/debug/*.apk"
           
