@@ -10,41 +10,62 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
       
-      - name: Repair Project Structure
+      - name: Repair and Force Build
         run: |
-          # Folders banana jo Android ko chahiye
+          # 1. Folder Structure Fix
           mkdir -p app/src/main/java/com/example/gestureshare
           mkdir -p app/src/main/res/layout
           mkdir -p app/src/main/assets
-          
-          # Bikhri hui files ko sahi jagah move karna
-          [ -f MainActivity.kt ] && mv MainActivity.kt app/src/main/java/com/example/gestureshare/
-          [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/
-          [ -f activity_main.xml ] && mv activity_main.xml app/src/main/res/layout/
-          [ -f hand_landmarker.task ] && mv hand_landmarker.task app/src/main/assets/
-          [ -f build.gradle ] && mv build.gradle app/build.gradle
-          
-          # Nayi settings file banana
+
+          # 2. Files Move (Bina Error ke)
+          mv MainActivity.kt app/src/main/java/com/example/gestureshare/ || true
+          mv AndroidManifest.xml app/src/main/ || true
+          mv activity_main.xml app/src/main/res/layout/ || true
+          mv hand_landmarker.task app/src/main/assets/ || true
+
+          # 3. Correct Settings File
           echo "include ':app'" > settings.gradle
-          
-          # Root level build file banana
+
+          # 4. Correct Root build.gradle (Fixed Version)
           cat <<EOF > build.gradle
           buildscript {
               repositories { google(); mavenCentral() }
-              dependencies { classpath 'com.android.tools.build:gradle:8.2.0'; classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.0" }
+              dependencies { classpath 'com.android.tools.build:gradle:8.1.1' }
           }
           allprojects { repositories { google(); mavenCentral() } }
           EOF
 
-      - name: Build APK
+          # 5. Correct App build.gradle
+          cat <<EOF > app/build.gradle
+          plugins { id 'com.android.application' }
+          android {
+              namespace 'com.example.gestureshare'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.example.gestureshare"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+              implementation 'com.google.android.material:material:1.11.0'
+              implementation 'com.google.mediapipe:tasks-vision:0.10.0'
+          }
+          EOF
+
+      - name: Build APK with Fixed Gradle
         run: |
-          gradle wrapper
+          # Gradle 8.2 use karenge taaki HasConvention error na aaye
+          gradle wrapper --gradle-version 8.2
           chmod +x gradlew
-          ./gradlew :app:assembleDebug --stacktrace
+          ./gradlew :app:assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: EraShare-APK
+          name: EraShare-Final-APK
           path: "**/build/outputs/apk/debug/*.apk"
           
